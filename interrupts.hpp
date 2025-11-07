@@ -25,12 +25,12 @@ struct memory_partition_t {
 };
 
 memory_partition_t memory[] = {
-    memory_partition_t(1, 40, "empty"),
-    memory_partition_t(2, 25, "empty"),
-    memory_partition_t(3, 15, "empty"),
-    memory_partition_t(4, 10, "empty"),
-    memory_partition_t(5, 8, "empty"),
-    memory_partition_t(6, 2, "empty")
+    memory_partition_t(1, 40, "free"),
+    memory_partition_t(2, 25, "free"),
+    memory_partition_t(3, 15, "free"),
+    memory_partition_t(4, 10, "free"),
+    memory_partition_t(5, 8, "free"),
+    memory_partition_t(6, 2, "free")
 };
 
 struct PCB{
@@ -54,7 +54,7 @@ struct external_file{
 bool allocate_memory(PCB* current) {
     for(int i = 5; i >= 0; i--) { //Start from smallest partition
         //check is the code will fit and if the partition is empty
-        if(memory[i].size >= current->size && memory[i].code == "empty") {
+        if(memory[i].size >= current->size && memory[i].code == "free") {
             current->partition_number = memory[i].partition_number;
             memory[i].code = current->program_name;
             return true;
@@ -65,21 +65,21 @@ bool allocate_memory(PCB* current) {
 
 //frees the memory given PCB.
 void free_memory(PCB* process) {
-    memory[process->partition_number - 1].code = "empty";
-    process->partition_number = -1;
+    if (process->partition_number > 0){
+        memory[process->partition_number - 1].code = "free";
+        process->partition_number = -1;
+    }
 }
 
 // Following function was taken from stackoverflow; helper function for splitting strings
-std::vector<std::string> split_delim(std::string input, std::string delim) {
+std::vector<std::string> split_delim(const std::string &input, const std::string &delim) {
     std::vector<std::string> tokens;
-    std::size_t pos = 0;
-    std::string token;
-    while ((pos = input.find(delim)) != std::string::npos) {
-        token = input.substr(0, pos);
-        tokens.push_back(token);
-        input.erase(0, pos + delim.length());
+    std::size_t start = 0, pos;
+    while ((pos = input.find(delim, start)) != std::string::npos) {
+        tokens.push_back(input.substr(start, pos - start));
+        start = pos + delim.size();
     }
-    tokens.push_back(input);
+    tokens.push_back(input.substr(start));
 
     return tokens;
 }
@@ -314,17 +314,14 @@ std::string print_PCB(PCB current, std::vector<PCB> _PCB) {
 
 
 // Searches the external_files table and returns the size of the program
-unsigned int get_size(std::string name, std::vector<external_file> external_files) {
-    int size = -1;
-
-    for (auto file : external_files) { 
+int get_size(const std::string &name, const std::vector<external_file> &external_files) {
+    for (const auto &file : external_files) { 
         if(file.program_name == name){
-            size = file.size;
-            break;
+            return static_cast<int>(file.size);
         }
     }
 
-    return size;
+    return -1;
 }
 
 #endif
