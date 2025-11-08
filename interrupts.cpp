@@ -49,8 +49,31 @@ std::tuple<std::string, std::string, int> simulate_trace(std::vector<std::string
             current_time = time;
 
             ///////////////////////////////////////////////////////////////////////////////////////////
-            //Add your FORK output here
 
+            execution += std::to_string(current_time) + ", " + std::to_string(duration_intr) + ", cloning the PCB\n";
+            current_time += duration_intr;
+
+            unsigned int max_pid = current.PID; //create new child pid (max pid +1)
+            for (const auto &p : wait_queue){
+                if(p.PID > max_pid){
+                    max_pid = p.PID;
+                }
+            }
+            unsigned int child_pid = max_pid + 1;
+
+            PCB child(child_pid, (int)current.PID, current.program_name, current.size, -1); //copy pcb info into child
+
+            bool alloc_ok = allocate_memory(&child); //try to allocate memory for child
+            wait_queue.push_back(current); //put parent in wait queue
+
+            //system status update after the FORK
+            system_status += "time: " + std::to_string(current_time) + "; current trace: " + trace + "\n";
+            system_status += print_PCB(child, wait_queue);
+
+            //sheduler called and IRET (0ms and 1 ms)
+            execution += std::to_string(current_time) + ", 0, scheduler called\n";
+            execution += std::to_string(current_time) + ", 1, IRET\n";
+            current_time +=1;
 
 
             ///////////////////////////////////////////////////////////////////////////////////////////
@@ -91,8 +114,17 @@ std::tuple<std::string, std::string, int> simulate_trace(std::vector<std::string
 
             ///////////////////////////////////////////////////////////////////////////////////////////
             //With the child's trace, run the child (HINT: think recursion)
+            if (!child_trace.empty()){
+                auto [child_exec, child_status, child_end_time] = simulate_trace(child_trace, current_time, vectors, delays, external_files, child, wait_queue);
+                execution += child_exec;
+                system_status += child_status;
+                current_time = child_end_time;
 
-
+                if (!wait_queue.empty()){
+                    current = wait_queue.back();
+                    wait_queue.pop_back();
+                }
+            }
 
             ///////////////////////////////////////////////////////////////////////////////////////////
 
@@ -148,6 +180,8 @@ int main(int argc, char** argv) {
 
     //Make initial PCB (notice how partition is not assigned yet)
     PCB current(0, -1, "init", 1, -1);
+    current.partition_number = 6; //assign to partition 6 
+    memory[5].code = "init"; 
     //Update memory (partition is assigned here, you must implement this function)
     if(!allocate_memory(&current)) {
         std::cerr << "ERROR! Memory allocation failed!" << std::endl;
