@@ -3,7 +3,6 @@
 
 ## Authors:
 - Mark Bowerman
-- Aleeza Mazhar
 
 ## Overview
 This assignment is divided into two main parts:
