@@ -136,8 +136,43 @@ std::tuple<std::string, std::string, int> simulate_trace(std::vector<std::string
 
             ///////////////////////////////////////////////////////////////////////////////////////////
             //Add your EXEC output here
+            //find program details form external_files
+            auto it = std::find_if(external_files.begin(), external_files.end(), [&](const external_file& f){ return f.program_name == program_name; });
 
+            if(it == external_files.end()){
+                execution += std::to_string(current_time) + ", 0, ERROR: program " + program_name + " not found\n";
+                continue; //skip if missing
+            }
 
+            int prog_size = it->size; //size of program
+
+            execution += std::to_string(current_time) + ", " + std::to_string(duration_intr) + ", starting EXEC for program: " + program_name + "\n";
+            current_time += duration_intr;
+
+            free_memory(&current); //free current memory
+
+            //assign new program info
+            current.program_name = program_name;
+            current.size = prog_size;
+
+            //allocate mem for the new program
+            bool alloc_ok = allocate_memory(&current);
+            if (!alloc_ok){
+                execution += std::to_string(current_time) + ", 0, ERROR: Not enough memory for " + program_name + "\n";
+                continue;
+            }
+
+            //sim loader
+            int load_time = prog_size * 15; //15ms per MB
+            execution += std::to_string(current_time) + ", " + std::to_string(load_time) + ", loading " + program_name + "into memory\n";
+            current_time += load_time;
+
+            system_status += "time: " + std::to_string(current_time) + "; current trace: " + trace + "\n";
+            system_status += print_PCB(current, wait_queue);
+
+            execution +=std::to_string(current_time) + ", 0, scheduler called\n";
+            execution +=std::to_string(current_time) + ", 1, IRET\n";
+            current_time += 1;
 
             ///////////////////////////////////////////////////////////////////////////////////////////
 
@@ -152,7 +187,12 @@ std::tuple<std::string, std::string, int> simulate_trace(std::vector<std::string
 
             ///////////////////////////////////////////////////////////////////////////////////////////
             //With the exec's trace (i.e. trace of external program), run the exec (HINT: think recursion)
-
+            if(!exec_traces.empty()){
+                auto [exec_exec, exec_status, exec_end_time] = simulate_trace(exec_traces, current_time, vectors, delays, external_files, current, wait_queue);
+                execution += exec_exec;
+                system_status += exec_status;
+                current_time = exec_end_time;
+            }
 
 
             ///////////////////////////////////////////////////////////////////////////////////////////
